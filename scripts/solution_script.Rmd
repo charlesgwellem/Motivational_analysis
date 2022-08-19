@@ -1,0 +1,81 @@
+---
+title: "solution_script"
+author: "Charles"
+date: "19 8 2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## **Description**
+
+The task consists of finding groups or clusters within a dataset consisting of 49 patients (observations) who provided various responses about 12 factors (variables) that motivate them. Each value is basically the mean value of about 7 questions people answered in the particular category/variable. 
+
+This is basically an unsupervised clustering problem. Clustering is a form of exploratory data analysis (EDA) whereby observations are grouped into meaningful groups, based on features they share.
+
+I will use various approaches to identify and confirm the optimal number of groups of patients within the dataset. These approaches will fall under the following milestones:
+
+1. Data pre-processing
+2. Select similarity metric
+3. Clustering
+4. Analyses
+
+## **Setup**
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = TRUE)
+```
+
+## **Load libraries**
+
+```{r libraries}
+library(openxlsx)
+library(ggplot2)
+library(purrr)
+```
+
+## **Load in the dataset**
+
+```{r data_set}
+list.files("raw_data")
+
+# read in the data
+raw_data <- read.xlsx("raw_data/Vinyu_Motivation_Challenge_Test.xlsx", 
+                      rowNames = TRUE)
+```
+
+## **Step 1: Data pre-processing.**
+
+This is to explore for missing values and to make sure the data are on the same scale. This is because based on my presumption, these values were very unlikely to be on the same scale.
+
+### ***i. Check for missing values.**
+
+```{r check_NA}
+anyNA(raw_data) # check for NAs
+
+# inspect
+View(raw_data) 
+dim(raw_data)
+```
+
+Result shows the absence of missing values in the dataset.
+
+### **ii. Standardise the the features.**
+
+I will perform standardisation. This will help make the data comparable, since it is unlikely that they were measured on the same scale. Without standardisation, distances between samples may become exagerated and unmeaningful. I will make use of base R's $scale()$ function. Each feature column will be normalised to a mean of 0 and a variance of 1.
+
+```{r scaling}
+# scale the data
+scaled_data <- scale(raw_data)
+```
+
+## **Step 2: The similarity metric.**
+
+The similarity metric I will use is the distance. So I will compute the distance between each samples, using base R's $dist()$ function which calculates the Euclidean distance by default.
+
+```{r dist}
+# calculate the distance
+dist_scaled_data <- dist(scaled_data)
+```
+
+## **Step 3: Clustering.**
