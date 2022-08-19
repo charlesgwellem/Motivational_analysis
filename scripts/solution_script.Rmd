@@ -32,6 +32,8 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = TRUE)
 library(openxlsx)
 library(ggplot2)
 library(purrr)
+library(dplyr)
+library(tidyr)
 ```
 
 ## **Load in the dataset**
@@ -79,3 +81,46 @@ dist_scaled_data <- dist(scaled_data)
 ```
 
 ## **Step 3: Clustering.**
+
+### **i. Hierarchical clustering.**
+
+We can perform hierarchical clustering based on the distances defined above using the $hclust()$ function. This function returns an `hclust` object that describes the groupings that were created using the algorithm described above. The `plot` method represents these relationships with a tree or dendrogram: 
+
+
+```{r Hclust}
+library(rafalib) # to optimise graphical parameters.
+mypar()
+hc <- hclust(dist_scaled_data)
+hc
+plot(hc, cex = 0.5, asp = 1)
+```
+
+The hierarchical clustering is consistent with the existence to two main clusters. So I define two clusters, and I cut the tree at height value 9 group all samples that are within that distance into groups below. To visualize this, I will draw a horizontal line at the height I wish to cut and this defines that line. I start with 9.
+
+```{r clust_assignment}
+myplclust(hc,cex = 0.5)
+abline(h = 9)
+
+# cut tree
+hclusters <- cutree(hc, h = 9)
+print(hclusters)
+```
+
+Results show which cluster each patient belongs to.
+
+### **ii. K-Means clustering.**
+
+We can also cluster with the `kmeans` function to perform k-means clustering. I will estimate the otimal number of Ks using two appraoches: 
+
+#### Leveraging the total within-cluster sum of squares
+
+I will use $map_dbl()$ from the $purrr$ library to run k-means using values of k ranging from 1 to 10 and extract the total within-cluster sum of squares.
+
+```{r within_cluster}
+```
+
+
+```{r Kmeans}
+We can also cluster with the `kmeans` function to perform k-means clustering. As an example, let's run k-means on the samples in the space of the first two genes:
+```
+
