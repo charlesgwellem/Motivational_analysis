@@ -180,9 +180,10 @@ mds$cluster <- km$cluster
 
 ggplot(mds, aes(MDS1, MDS2)) +
   geom_point(aes(color = factor(cluster))) +
-  ggtitle("K - Means clustering") +
+  ggtitle("K - Means clustering visualisation") +
   theme_bw() +
-  theme(aspect.ratio = 1)
+  theme(aspect.ratio = 1,
+        plot.title=element_text(hjust=0.5)) # centralise plot title
 ```
 
 
@@ -190,9 +191,71 @@ ggplot(mds, aes(MDS1, MDS2)) +
 
 ### **Perform principal components analysis to identify influential features.**
 
+I perform PCA to identify features that determine the positions of the patients on the principal components and also if there are hidden structures within the data set.
+
 ```{r PCA}
 # do PCA: I fit in the raw data 
 # because I set scale parameter to True
 pca <- prcomp(raw_data, scale. = TRUE)
 
+# obtain variance of each PC
+pcaVar <- pca$sdev ** 2
+
+# obtain pct variance from each PC
+pctVar <- round(pcaVar / sum(pcaVar) * 100, 1) 
+
+pctVar <- as.data.frame(pctVar)
+
+pctVar$PC <- 1:dim(pctVar)[1]
+
+# make scree plot
+ggplot(pctVar, aes(PC, pctVar)) +
+  ggtitle("scree plot") +
+  geom_bar(stat = "identity") +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme_bw() +
+  theme(aspect.ratio = 1,
+        plot.title=element_text(hjust=0.5)) # centralise plot title
 ```
+
+The scree plot shows that PC1 accounts for almost 30% of the total variance. But PC2 and PC2 also account for a considerable amount of variance being 16% and 13% respectively. This necessitates further analyses to discover more structures within the dataset. This will be done using the surrogate value analysis or sva.
+
+Plotting the PCA.
+
+```{r pca_plot}
+# prepare dataframe of PCA details
+pca_df <- data.frame(samples = rownames(pca$x),
+                     X = pca$x[, 1],
+                     Y = pca$x[, 2])
+
+# add cluster information
+pca_df$cluster <- km$cluster
+
+ggplot(pca_df, aes(x = X, y = Y,
+                   label = samples),
+       fill = cluster) +
+  geom_text(aes(colour = factor(cluster))) +
+  xlab(paste0("PC1 - ", pctVar[1, 1], "%")) +
+  ylab(paste0("PC2 - ", pctVar[2, 1], "%")) +
+  theme_bw() +
+  theme(aspect.ratio = 1)
+```
+
+Just like the hierarchical clustering, the PCA plot of the first two principal comonents show that P1, P23, and P44 form a cluster separated from the rest. However at the PCA level, P34 appears to highly correlate with P1, P23 and P44, a feature which hierarchical clustering misses out.
+
+To find out the most influential features, the loading scores need to be assessed.
+
+```{r loading_scores}
+loading_scores <- pca$rotation[, 1]
+feature_scores <- abs(loading_scores)
+feature_scores_ranked <- sort(feature_scores,
+                              decreasing = TRUE)
+loading_scores[names(feature_scores_ranked)]
+```
+
+I will only assess the loading scores of the first PC since it accounts for most of the variation in the data set. The loading scores show that thet variables **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf** and **Essen** tend to have a strong influence in pushing samples to the right of the PC1 vs PC1 plot. On the other hand **Emotionale_Ruhe** tend to push samples to the left of the PC1 vs PC2 plot. This shows that the factors  **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf**, **Essen** and **Emotionale_Ruhe** are very strong motivation factors.
+
+### **Perform the surrogate value analysis.**
+
+To identify more hidden strictures within the dataet, I perform sva.
