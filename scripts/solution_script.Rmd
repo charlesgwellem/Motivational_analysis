@@ -95,11 +95,11 @@ hc
 plot(hc, cex = 0.5, asp = 1)
 ```
 
-The hierarchical clustering is consistent with the existence to two main clusters. So I define two clusters, and I cut the tree at height value 9 group all samples that are within that distance into groups below. To visualize this, I will draw a horizontal line at the height I wish to cut and this defines that line. I start with 9.
+The hierarchical clustering is consistent with the existence to two main clusters, one of which has two main sub-clusters. So I define three clusters, and I cut the tree at height value 8 group all samples that are within that distance into groups below. To visualize this, I will draw a horizontal line at the height I wish to cut and this defines that line. I start with 8.
 
 ```{r clust_assignment}
 myplclust(hc,cex = 0.5)
-abline(h = 9)
+abline(h = 8)
 
 # cut tree
 hclusters <- cutree(hc, h = 9)
@@ -112,15 +112,87 @@ Results show which cluster each patient belongs to.
 
 We can also cluster with the `kmeans` function to perform k-means clustering. I will estimate the otimal number of Ks using two appraoches: 
 
-#### Leveraging the total within-cluster sum of squares
+#### ** Estimation by total within-cluster sum of squares**
 
 I will use $map_dbl()$ from the $purrr$ library to run k-means using values of k ranging from 1 to 10 and extract the total within-cluster sum of squares.
 
 ```{r within_cluster}
+# Use map_dbl to run many models with varying value of k (centers)
+tot_withinss <- map_dbl(1:10,  function(k){
+  model <- kmeans(x = scaled_data, centers = k)
+  model$tot.withinss
+})
+
+# Generate a data frame containing both k and tot_withinss
+elbow_df <- data.frame(
+  k = 1:10,
+  tot_withinss = tot_withinss
+)
+
+# Plot the elbow plot
+ggplot(elbow_df, aes(x = k, y = tot_withinss)) +
+  ggtitle("within-cluster sum of squares vs K") +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = 1:10) +
+  theme_bw() +
+  theme(aspect.ratio = 1)
+```
+
+The plot of the total within-cluster sum of squares **tot_withinss**, against the number of clusters **k**. The curve begins to flatten out at k = 3. So I use 3 as the estimated value of k.
+
+#### **Estimation by Silhouette analysis.**
+
+```{r silhouette}
+library(cluster)
+
+# Use map_dbl to run many models with varying value of k
+sil_width <- map_dbl(2:10,  function(k){
+  model <- pam(x = scaled_data, k = k)
+  model$silinfo$avg.width
+})
+
+# Generate a data frame containing both k and sil_width
+sil_df <- data.frame(
+  k = 2:10,
+  sil_width = sil_width
+)
+
+# Plot the relationship between k and sil_width
+ggplot(sil_df, aes(x = k, y = sil_width)) +
+  geom_line() +
+  scale_x_continuous(breaks = 2:10)
+```
+
+The highest silhouette width is 0.12 corresponsing to a k of 2. This is in line with results from the hclust and tot_withinss. So I use a K = 3.
+
+```{r kmeans}
+# use an mds plot to visualise the kmeans clustering
+km <- kmeans(scaled_data, centers = 3)
+mds <- cmdscale(dist_scaled_data)
+
+# create data frame
+mds <- as.data.frame(mds)
+
+colnames(mds) <- c("MDS1", "MDS2")
+
+mds$cluster <- km$cluster
+
+ggplot(mds, aes(MDS1, MDS2)) +
+  geom_point(aes(color = factor(cluster))) +
+  ggtitle("K - Means clustering") +
+  theme_bw() +
+  theme(aspect.ratio = 1)
 ```
 
 
-```{r Kmeans}
-We can also cluster with the `kmeans` function to perform k-means clustering. As an example, let's run k-means on the samples in the space of the first two genes:
-```
+## **Step 4: Analyses.**
 
+### **Perform principal components analysis to identify influential features.**
+
+```{r PCA}
+# do PCA: I fit in the raw data 
+# because I set scale parameter to True
+pca <- prcomp(raw_data, scale. = TRUE)
+
+```
