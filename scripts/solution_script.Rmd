@@ -47,6 +47,7 @@ library(fpc) # clustering and cluster validation
 ## **To load in the dataset.**
 
 ```{r data_set}
+# to see files in the directory
 list.files("raw_data")
 
 # read in the data
@@ -102,10 +103,10 @@ For the clustering, I will explore hierarchical and k-means clustering thanks to
 I will perform hierarchical clustering based on the distances defined above using the $hclust()$ function. This function returns an `hclust` object that describes the groupings that were created using the algorithm described above. The $plot()$ function represents these relationships with a tree or dendrogram. 
 
 ```{r complete_Hclust}
-# for impoved graphics
+# for improved graphics
 mypar() 
 
-# forfer hclust
+# perform hclust
 hc_complete <- hclust(dist_scaled_data,
                       method = "complete")
 hc_complete
@@ -137,7 +138,8 @@ pdf(file="figures/hc_complete_h8.pdf")
 
 myplclust(hc_complete, cex = 0.5, asp = 1, 
      main = "Complete Linkage")
-abline(h = 8) # line at h = 8
+abline(h = 8, col = "red", 
+       lty = 2) # dashed line at h = 8
 
 dev.off()
 
@@ -195,7 +197,7 @@ I will use $map\_dbl()$ from the **purrr** package to run k-means using values o
 
 ```{r within_cluster}
 # Use map_dbl to run many models with varying value of k (centers)
-set.seed(1) # for reporducibility
+set.seed(1) # for reproducibility
 tot_withinss <- map_dbl(1:10,  function(k){
   model <- kmeans(x = scaled_data, centers = k)
   model$tot.withinss
@@ -221,14 +223,14 @@ ggsave("figures/within_cluster_squares.pdf",
        height = 5, width = 5, dpi = 300)
 ```
 
-The plot of the total within-cluster sum of squares **tot_withinss**, against the number of clusters **k** shows that the curve begins to flatten out more at **k = 3**. So I use **3** as the best estimated value of k.
+The plot of the total within-cluster sum of squares **tot_withinss**, against the number of clusters **k** shows that the curve begins to flatten out more at **k = 3**. So I use **3** as the best estimated value of **k**.
 
 #### **Estimation by Silhouette analysis.**
 
 ```{r silhouette}
 # Use map_dbl to run many models with varying value of k
 sil_width <- map_dbl(2:10,  function(k){
-  set.seed(1) # for reporducibility
+  set.seed(1) # for reproducibility
   model <- pam(x = scaled_data, k = k)
   model$silinfo$avg.width
 })
@@ -264,7 +266,7 @@ km <- kmeans(scaled_data, centers = 3)
 
 To visualise the kmeans clustering results I use two approaches.
 
-**The Discriminant Projection plot:**
+**The Discriminant Projection plot.**
 
 ```{r dc_plot}
 # visualise clustering
@@ -277,12 +279,11 @@ pdf(file = "figures/dc_plot.pdf",
 plotcluster(scaled_data, km$cluster)
 
 dev.off()
-
 ```
 
 The $plotcluster()$ function derives from the **fpc** package and its results shows the presence of three clusters, 1, 2 and 3. Please note that the ordering of the clusters is not same as that derived from the hierarchical clustering. The horizontal and vertical axes, represent **discriminant coordinates** (dc), which represent a space convenient for presenting multidimensional data originating from multiple groups and for the use of various classification methods.
 
-**The Bivariate Cluster Plot:** 
+**The Bivariate Cluster Plot.** 
 
 ```{r RCP}
 # plot
@@ -301,7 +302,7 @@ clusplot(scaled_data, km$cluster,
 dev.off()
 ```
 
-The $clusplot()$ function is derived from the **cluster** package. Its results are consistent with the one derived from Discriminant Projection Plot. Just like the hierarchical clustering, it shows that the least populated cluster, in this case cluster 3, contains 4 members, being P1, P23 and P44 just like the hierarchical clustering, but also includes P26.
+The $clusplot()$ function is derived from the **cluster** package. Its results are consistent with the one derived from Discriminant Projection Plot. Just like the hierarchical clustering, it shows that the least populated cluster, in this case cluster 3, contains 4 members, being P1, P23 and P44 but also includes P26.
 
 ## **Step 4: Analyses.**
 
@@ -343,7 +344,7 @@ ggsave("figures/PctVar_vs_PC.pdf",
         height = 5, width = 5, dpi = 300)
 ```
 
-The scree plot shows that PC1 accounts for almost **30%** of the total variance. But PC2 and PC2 also account for a considerable amount of variance being **16%** and **13%** respectively. This necessitates further analyses to discover more hidden structures within the dataset. This can be done using the [surrogate value analysis or sva](https://bioconductor.org/packages/release/bioc/html/sva.html). However to do a good sva, I need more metadata.
+The scree plot shows that PC1 accounts for almost **30%** of the total variance. But PC2 and PC2 also account for a considerable amount of variance being **16%** and **13%** respectively. This necessitates further analyses to discover more hidden structures within the dataset. This can be done using the [surrogate value analysis or sva](https://bioconductor.org/packages/release/bioc/html/sva.html). However to do a good sva, I need more metadata which is currently unavailable.
 
 **Plotting the PCA.**
 
@@ -376,7 +377,7 @@ Just like the hierarchical clustering, the PCA plot of the first two principal c
 To find out the most influential features on the first PC, the loading scores need to be assessed.
 
 ```{r loading_scores}
-# obtain oading scores 
+# obtain loading scores 
 loading_scores <- pca$rotation[, 1]
 
 # obtain the absolute values.
@@ -386,13 +387,13 @@ feature_scores <- abs(loading_scores)
 feature_scores_ranked <- sort(feature_scores,
                               decreasing = TRUE)
 
-# insoect loading scores.
+# inspect loading scores.
 loading_scores[names(feature_scores_ranked)]
 ```
 
-I will only assess the loading scores of the first PC since it accounts for most of the variation in the data set. The loading scores show that the variables **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf** and **Essen** tend to have a strong influence in pushing samples to the right of the PC1 vs PC2 plot. This also means that these variables have a strong correlation with each other. On the other hand **Emotionale_Ruhe** tends to push samples to the left of the PC1 vs PC2 plot. In this light, P1, P23, P26 and P44 are more strongly motivated by **Emotionale_Ruhe** compared to all the rest. Meanwhile all other patients except P1, P23, P26 and P44 are strongly motivate **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf**.
+I will only assess the loading scores of the first PC since it accounts for most of the variation in the data set. The loading scores show that the variables **Macht_und_Einfluss**, **Eros_und_Schoenheit**, **Wettkampf** and **Essen** tend to have a strong influence in pushing samples to the right of the PC1 vs PC2 plot. This also means that these variables have a strong correlation with each other. On the other hand **Emotionale_Ruhe** tends to push samples to the left of the PC1 vs PC2 plot. In this light, P1, P23, P26 and P44 are more strongly motivated by **Emotionale_Ruhe** compared to all the rest. Meanwhile all other patients except P1, P23, P26 and P44 are strongly motivate **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf**.
 
-The analysis shows that the factors  **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf**, **Essen** and **Emotionale_Ruhe** are very strong determinants of motivation.
+The analysis shows that the factors  **Macht_und_Einfluss**, **Eros_und_Schoenheit**, **Wettkampf**, **Essen** and **Emotionale_Ruhe** are very strong determinants of motivation among these patients.
 
 ### **ii. Correlation analysis.**
 
@@ -517,11 +518,12 @@ heatmap.2(t(scaled_data)[idx,],
           keysize = 1.5,
           ColSideColors = cols, 
           margins = c(10,12),
-          col = hmcol) 
+          col = hmcol)
+
 dev.off()
 ```
 
-The heatmap shows that one member of cluster 3 clusters together with members of cluster 1 and 2. Based on the analyses performed so far, I expect a certain degree of cluster overlaps between members of clusters 1 and 2 as shown in the plot.
+The heatmap shows that one member of cluster 3 clusters together with members of cluster 1 and 2. Based on the analyses performed so far, I expect a certain degree of cluster overlaps between members of clusters 1 and 2 as shown in the heatmap plot.
 
 It is noticeable on the heatmap that members of cluster 3 are in general the least motivated given most of the variables.
 
