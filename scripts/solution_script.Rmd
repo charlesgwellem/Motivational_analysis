@@ -1,7 +1,7 @@
 ---
 title: "solution_script"
 author: "Charles"
-date: "`Sys.Date()`"
+date: "`r Sys.Date()`"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -9,11 +9,11 @@ editor_options:
 
 ## **Description**
 
-The task consists of finding groups or clusters within a dataset consisting of 49 patients (observations) who provided responses to about 12 factors (variables) that motivate them. Each value is basically the mean value of about 7 questions people answered within the particular category/variable. 
+The task consists of finding groups or clusters of patients within a study. The study consists of 49 patients (observations) who provided responses to 12 factors (features) that motivate them. Each value is the mean value of about 7 questions an individual answered within the particular feature. 
 
-This is basically an unsupervised clustering problem. Clustering is a form of exploratory data analysis (EDA) whereby observations are grouped into meaningful groups, based on features they share.
+This is basically an unsupervised clustering problem. Clustering is a form of exploratory data analysis (EDA) whereby observations are grouped into meaningful groups, based on the features they share.
 
-I will use various approaches to identify and confirm the optimal number of groups of patients within the dataset. These approaches will fall under the following milestones:
+I will use various approaches to identify and confirm the optimal number of groups of patients within the dataset as well as the features that drive these groupings. These approaches will fall under the following milestones:
 
 1. Data pre-processing
 2. Selection of similarity metric
@@ -22,8 +22,8 @@ I will use various approaches to identify and confirm the optimal number of grou
 
 ## **Setup**
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = TRUE)
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 ## **To load the libraries.**
@@ -40,7 +40,8 @@ library(corrplot) # plotting correlation plot
 library(rpart) # perform recursive partitioning
 library(genefilter) # for variation analysis.
 library(RColorBrewer) # for colouring
-library(gplots) # for clustering
+library(gplots) # for plotting
+library(fpc) # clustering and cluster validation
 ```
 
 ## **To load in the dataset.**
@@ -55,19 +56,21 @@ raw_data <- read.xlsx("raw_data/Vinyu_Motivation_Challenge_Test.xlsx",
 
 ## **Step 1: Data pre-processing.**
 
-This is to explore for missing values and to make sure that the data are on the same scale. This is because these values for the different variables are unlikely to be on the same scale.
+This is to explore for the presence of missing values and to make sure that the data are on the same scale. This is because the values for the different variables are unlikely to be on the same scale.
 
 ### **i. Checking for missing values.**
 
 ```{r check_NA}
-anyNA(raw_data) # check for NAs
+# check for NAs
+anyNA(raw_data) 
 
 # inspect
 View(raw_data) 
+
 dim(raw_data)
 ```
 
-The result shows the absence of missing values in the dataset.
+The result shows the absence of missing values in the dataset, as well as the presence of 49 observations and 12 features.
 
 ### **ii. Standardising the the features.**
 
@@ -83,7 +86,7 @@ head(scaled_data)
 
 ## **Step 2: The similarity metric.**
 
-The similarity metric I will use is the **distance**. For hierarchical clustering, I will compute the distance between the samples, using base R's $dist()$ function which calculates the Euclidean distance by default.
+The similarity metric I will use is the **distance**. For hierarchical clustering, I will compute the distance between the samples, using the **stats** package's $dist()$ function which calculates the Euclidean distance by default.
 
 ```{r dist}
 # calculate the distance
@@ -92,13 +95,19 @@ dist_scaled_data <- dist(scaled_data)
 
 ## **Step 3: Clustering.**
 
+For the clustering, I will explore hierarchical and k-means clustering thanks to their suitability.
+
 ### **i. Hierarchical clustering.**
 
 I will perform hierarchical clustering based on the distances defined above using the $hclust()$ function. This function returns an `hclust` object that describes the groupings that were created using the algorithm described above. The $plot()$ function represents these relationships with a tree or dendrogram. 
 
 ```{r complete_Hclust}
-mypar() # impoved graphics
-hc_complete <- hclust(dist_scaled_data, method = "complete")
+# for impoved graphics
+mypar() 
+
+# forfer hclust
+hc_complete <- hclust(dist_scaled_data,
+                      method = "complete")
 hc_complete
 
 # plot
@@ -114,13 +123,14 @@ plot(hc_complete, cex = 0.5, asp = 1,
 dev.off()
 ```
 
-The hierarchical clustering with complete linkage is consistent with the existence of two main clusters, one of which has two main sub-clusters. So I define three clusters, and I cut the tree at height value 8 and group all samples that are within that distance into groups below. To visualize this, I will draw a horizontal line at the height = 8.
+The hierarchical clustering with complete linkage is consistent with the existence of two main clusters, one containing patients P1, P23 and P44 and the other one containing the rest of the patients. The other main cluster has two main sub-clusters. From eye observation, I define three clusters, and I cut the tree at height value 8 and group all samples that are within that distance into groups below. To visualize this, I will draw a broken red horizontal line at the height = 8.
 
 ```{r clust_assignment}
 # plot
 myplclust(hc_complete, cex = 0.5, asp = 1, 
      main = "Complete Linkage")
-abline(h = 8) # line at h = 8
+abline(h = 8, col = "red", 
+       lty = 2) # dashed line at h = 8
 
 # save plot
 pdf(file="figures/hc_complete_h8.pdf") 
@@ -139,7 +149,7 @@ print(hclusters)
 table(hclusters)
 ```
 
-Results show which cluster each patient belongs to. The most populated clusters are clusters 3 and 2 while cluster 1 is the least.
+Results show which cluster each patient belongs to. The most populated clusters are clusters 3 and 2 while cluster 1 is the least. Cluster 1 contains P1, P23 and P44.
 
 By default, $hclust()$ implements clustering via complete linkage. The choice of linkage method can affect clustering results. I will explore the other two possible linkage methods. These are the **single** and **average linkage** methods.
 
@@ -152,11 +162,12 @@ hc_single
 hc_average <- hclust(dist_scaled_data, method = "average")
 hc_average
 
-# plot all linkage methods in one plot
-par(mfrow = c(1,3))
-plot(hc_single, main = 'Single Linkage')
-plot(hc_average, main = 'Average Linkage')
-plot(hc_complete, cex = 0.5, asp = 1, 
+# plot all linkage methods
+plot(hc_single, main = 'Single Linkage',
+     cex = 1, asp = 1)
+plot(hc_average, main = 'Average Linkage',
+     cex = 1, asp = 1)
+plot(hc_complete, cex = 1, asp = 1, 
      main = 'Complete Linkage')
 
 # save linkage plots
@@ -176,14 +187,15 @@ The results of the linkage methods consistently detect two major clusters, with 
 
 ### **ii. K-Means clustering.**
 
-We can also cluster with the base R's $kmeans()$ function to perform k-means clustering. To use kmeans clustering, I will empirically estimate the optimal number of Ks (clusters) using two approaches: 
+We can also cluster with the **stats** package's $kmeans()$ function to perform k-means clustering. To use kmeans clustering, I will empirically estimate the optimal number of ks (clusters) to be used, using two approaches: 
 
 #### **Estimation by total within-cluster sum of squares.**
 
-I will use $map_dbl()$ from the $purrr$ library to run k-means using values of k ranging from 1 to 10 and extract the total within-cluster sum of squares.
+I will use $map\_dbl()$ from the **purrr** package to run k-means using values of k ranging from 1 to 10 and extract the total within-cluster sum of squares.
 
 ```{r within_cluster}
 # Use map_dbl to run many models with varying value of k (centers)
+set.seed(1) # for reporducibility
 tot_withinss <- map_dbl(1:10,  function(k){
   model <- kmeans(x = scaled_data, centers = k)
   model$tot.withinss
@@ -200,6 +212,8 @@ ggplot(elbow_df, aes(x = k, y = tot_withinss)) +
   ggtitle("within-cluster sum of squares vs K") +
   geom_point() +
   geom_line() +
+  geom_vline(xintercept = c(3),
+             linetype = "longdash", colour = "red") +
   scale_x_continuous(breaks = 1:10) +
   theme_bw() +
   theme(aspect.ratio = 1)
@@ -207,13 +221,14 @@ ggsave("figures/within_cluster_squares.pdf",
        height = 5, width = 5, dpi = 300)
 ```
 
-The plot of the total within-cluster sum of squares **tot_withinss**, against the number of clusters **k** shows that the curve begins to flatten out more at k = 3. So I use 3 as the best estimated value of k.
+The plot of the total within-cluster sum of squares **tot_withinss**, against the number of clusters **k** shows that the curve begins to flatten out more at **k = 3**. So I use **3** as the best estimated value of k.
 
 #### **Estimation by Silhouette analysis.**
 
 ```{r silhouette}
 # Use map_dbl to run many models with varying value of k
 sil_width <- map_dbl(2:10,  function(k){
+  set.seed(1) # for reporducibility
   model <- pam(x = scaled_data, k = k)
   model$silinfo$avg.width
 })
@@ -226,8 +241,11 @@ sil_df <- data.frame(
 
 # Plot the relationship between k and sil_width
 ggplot(sil_df, aes(x = k, y = sil_width)) +
+  geom_point() +
   geom_line() +
   ggtitle("Silhouette widths vs K") +
+    geom_vline(xintercept = c(2),
+             linetype = "longdash", colour = "red") +
   scale_x_continuous(breaks = 2:10) +
   theme_bw() +
   theme(aspect.ratio = 1,
@@ -236,38 +254,60 @@ ggsave("figures/silhoutte_width_vs_k.pdf",
        height = 5, width = 5, dpi = 300)
 ```
 
-The highest silhouette width is almost **0.13** corresponding to a best k of 2. The closer a silhouette width is to 1, the better the clustering. However a best k of 2, based on silhouette width, is also in line with results from the $hclust()$ function and the within-cluster sum of squares metric. Based on combined information from hierarchical clustering with complete linkage and also from results from the total within within-cluster sum of squares, I use a **k = 3**.
+The highest silhouette width is almost **0.13** corresponding to a best k of 2. The closer a silhouette width is to 1, the better the clustering. However a best k of 2, based on silhouette width, is also in line with results from the $hclust()$ function and the within-cluster sum of squares metric. Based on combined information from hierarchical clustering with complete linkage and also from results from the total within within-cluster sum of squares, I settle for a **k = 3**.
 
 ```{r kmeans}
-# use a classic multidimensional scaling plot 
-# to visualise the kmeans clustering
+# perform kmeans
+set.seed(1) # for reproducibilitys
 km <- kmeans(scaled_data, centers = 3)
-mds <- cmdscale(dist_scaled_data)
-
-# create data frame
-mds <- as.data.frame(mds)
-
-colnames(mds) <- c("MDS1", "MDS2")
-
-mds$cluster <- km$cluster
-
-ggplot(mds, aes(MDS1, MDS2)) +
-  geom_point(aes(color = factor(cluster))) +
-  ggtitle("K - Means clustering visualisation") +
-  theme_bw() +
-  theme(aspect.ratio = 1,
-        plot.title = element_text(hjust = 0.5)) # centralise plot title
 ```
 
-The plot highlights the presence of 3 clusters.
+To visualise the kmeans clustering results I use two approaches.
 
-It should be noted that good clustering can also be achieved with k = 4, but I go for k = 3 since it appears to have less cluster overlaps.
+**The Discriminant Projection plot:**
+
+```{r dc_plot}
+# visualise clustering
+plotcluster(scaled_data, km$cluster)
+
+# save plot
+pdf(file = "figures/dc_plot.pdf",
+    height = 5, width = 5) 
+
+plotcluster(scaled_data, km$cluster)
+
+dev.off()
+
+```
+
+The $plotcluster()$ function derives from the **fpc** package and its results shows the presence of three clusters, 1, 2 and 3. Please note that the ordering of the clusters is not same as that derived from the hierarchical clustering. The horizontal and vertical axes, represent **discriminant coordinates** (dc), which represent a space convenient for presenting multidimensional data originating from multiple groups and for the use of various classification methods.
+
+**The Bivariate Cluster Plot:** 
+
+```{r RCP}
+# plot
+clusplot(scaled_data, km$cluster, 
+         color = TRUE, shade = TRUE, 
+         labels = 2, lines = 0) 
+
+# save plot
+pdf(file = "figures/bivariate_clustering.pdf",
+     height = 5, width = 5) 
+
+clusplot(scaled_data, km$cluster, 
+         color = TRUE, shade = TRUE, 
+         labels = 2, lines = 0) 
+
+dev.off()
+```
+
+The $clusplot()$ function is derived from the **cluster** package. Its results are consistent with the one derived from Discriminant Projection Plot. Just like the hierarchical clustering, it shows that the least populated cluster, in this case cluster 3, contains 4 members, being P1, P23 and P44 just like the hierarchical clustering, but also includes P26.
 
 ## **Step 4: Analyses.**
 
 ### **i. Principal components analysis to identify influential features.**
 
-I perform PCA to identify features that determine the positions of the patients on the principal components and also if there are more hidden structures within the data set.
+I perform PCA to identify features that determine the positions of the patients on the principal components and also if there are more hidden structures within the data set. I will use the $prcomp()$ function from the **stats** package.
 
 ```{r PCA}
 # to do PCA: I fit in the raw data 
@@ -280,13 +320,14 @@ pcaVar <- pca$sdev ** 2
 # obtain percentage variance from each PC
 pctVar <- round(pcaVar / sum(pcaVar) * 100, 1) 
 
+# create data frame
 pctVar <- as.data.frame(pctVar)
 
 pctVar$PC <- 1:dim(pctVar)[1]
 
 # save variations per PC
 write.xlsx(pctVar,
-           "var_explained_per_PC.xlsx",
+           "results/var_explained_per_PC.xlsx",
            rowNames = TRUE)
 
 # make scree plot
@@ -304,7 +345,7 @@ ggsave("figures/PctVar_vs_PC.pdf",
 
 The scree plot shows that PC1 accounts for almost **30%** of the total variance. But PC2 and PC2 also account for a considerable amount of variance being **16%** and **13%** respectively. This necessitates further analyses to discover more hidden structures within the dataset. This can be done using the [surrogate value analysis or sva](https://bioconductor.org/packages/release/bioc/html/sva.html). However to do a good sva, I need more metadata.
 
-Plotting the PCA.
+**Plotting the PCA.**
 
 ```{r pca_plot}
 # prepare data frame of PCA details
@@ -330,9 +371,9 @@ ggsave("figures/patient_grouping_on_PC.pdf",
         height = 5, width = 5, dpi = 300)
 ```
 
-Just like the hierarchical clustering, the PCA plot of the first two principal components shows that P1, P23, and P44 form a cluster separated from the rest. However at the PCA level, P34 appears to highly correlate with P1, P23 and P44, a feature which hierarchical clustering misses out.
+Just like the hierarchical clustering, the PCA plot of the first two principal components shows that P1, P23, and P44 form a cluster separated from the rest. However at the PCA level, P26 appears to highly correlate with P1, P23 and P44, a feature which hierarchical clustering misses out, but is also captured by the various clustering approaches used above to visualise kmeans clustering.
 
-To find out the most influential features, the loading scores need to be assessed.
+To find out the most influential features on the first PC, the loading scores need to be assessed.
 
 ```{r loading_scores}
 # obtain oading scores 
@@ -349,11 +390,13 @@ feature_scores_ranked <- sort(feature_scores,
 loading_scores[names(feature_scores_ranked)]
 ```
 
-I will only assess the loading scores of the first PC since it accounts for most of the variation in the data set. The loading scores show that the variables **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf** and **Essen** tend to have a strong influence in pushing samples to the right of the PC1 vs PC1 plot. This also means that these variables have a strong correlation with each other. On the other hand **Emotionale_Ruhe** tends to push samples to the left of the PC1 vs PC2 plot. This shows that the factors  **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf**, **Essen** and **Emotionale_Ruhe** are very strong determinants of motivation.
+I will only assess the loading scores of the first PC since it accounts for most of the variation in the data set. The loading scores show that the variables **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf** and **Essen** tend to have a strong influence in pushing samples to the right of the PC1 vs PC2 plot. This also means that these variables have a strong correlation with each other. On the other hand **Emotionale_Ruhe** tends to push samples to the left of the PC1 vs PC2 plot. In this light, P1, P23, P26 and P44 are more strongly motivated by **Emotionale_Ruhe** compared to all the rest. Meanwhile all other patients except P1, P23, P26 and P44 are strongly motivate **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf**.
+
+The analysis shows that the factors  **Macht_und_Einfluss**,  **Eros_und_Schoenheit**, **Wettkampf**, **Essen** and **Emotionale_Ruhe** are very strong determinants of motivation.
 
 ### **ii. Correlation analysis.**
 
-I perform a Spearman correlation analysis, to confirm findings from the PCA plot to see how features correlate with each other.
+I perform a Spearman correlation analysis, to confirm findings from the PCA plot to see how features correlate with each other. I use Spearman correlation so that I will be able to capture non-linear relationships, which Pearson correlation will not capture.
 
 ```{r spearman_cor}
 # calculate Spearman correlation.
@@ -363,12 +406,13 @@ the_cor <- cor(scaled_data, method = "spearman")
 corrplot(the_cor, diag = FALSE,
          hclust.method = "complete",
          is.corr = FALSE, 
-         tl.cex = 0.9,
+         tl.cex = 0.45,
          method = "square") 
-title("Spearman correlation", line = 3)
+title("Spearman correlation", line = 3.5,
+      cex.main = 0.9)
 
 # save correlation plot
-pdf(file="figures/Spearman_cor.pdf",
+pdf(file = "figures/Spearman_cor.pdf",
     height = 8, width = 8) 
 
 corrplot(the_cor, diag = FALSE,
@@ -381,7 +425,7 @@ title("Spearman correlation", line = 3)
 dev.off()
 ```
 
-The results confirm that **Macht_und_Einfluss** has its strongest correlation with **Eros_und_Schoenheit**, **Wettkampf**  and negatively correlates with **Emotionale_Rule**.
+The results confirm that **Macht_und_Einfluss** has its strongest positive correlation with **Eros_und_Schoenheit**, **Wettkampf**  and negatively correlates with **Emotionale_Rule**.
 
 ### **iii. Recursive partitioning.**
 
@@ -395,37 +439,55 @@ scaled_data_df <- as.data.frame(scaled_data)
 scaled_data_df$cluster <- km$cluster
 
 # do recursive partitioning
-set.seed(123)
+set.seed(1)
 rp <- rpart(cluster ~ ., # use all features 
             method = "class", # perform classification
-            data = scaled_data_df)
+            data = scaled_data_df,
+            control = rpart.control(minsplit = 11))
 
 # plot
-set.seed(123)
-plot(rp, branch = 0, margin = 0.1); text(rp, digits = 3, use.n = TRUE); title("Recursive partitioning")
+plot(rp, branch = 0.9, margin = 0.1); text(rp, digits = 3, use.n = TRUE); title("Recursive partitioning")
 
 # save plot
 pdf(file="figures/rpart.pdf",
     height = 8, width = 8)
 
 # plot
-set.seed()
-plot(rp, branch = 0, margin = 0.1); text(rp, digits = 3, use.n = TRUE); title("Recursive partitioning")
+plot(rp, branch = 0.9, margin = 0.1); text(rp, digits = 3, use.n = TRUE); title("Recursive partitioning")
 
 dev.off()
 ```
 
-Rpart analysis shows that, members of cluster 3  are more motivated by **Macht_und_Einfluss** compared members of cluster 2 and that members of cluster 1 are more motivated by **Wettkampf ** compared to members of cluster 3. Some members of cluster 3 have are highly motivated by **Eros_und_Schoenheit** while other members of the same cluster 3 have a low motivation for it. Cluster 1 has a higher motivation for **Eros_und_Schoenheit** compared to cluster 2. **Eros_und_Schoenheit** is a very important differentiating factor in the patients. 
+**rpart** analysis shows that, **Macht_und_Einfluss** is the strongest factor differentiating between cluster 3 from clusters 1 and 2. Cluster 1 and 2 members are strongly motivated by **Macht_und_Einfluss** compared to members of clusters 3. This is in line with the loading scores analysis from PC1 above. To separate clusters 1 and 2, **rpart** shows that cluster 1 has a higher motivation for **Essen** than members of cluster 2.
+
+Plotting the **variable importance** shows that **Essen** and **Macht_und_Einfluss** are the strongest distinguishing features in the dataset, in line with the results from the PCA analysis above.
+
+```{r variable_imp}
+# plot the variable importance
+vip::vip(rp) +
+  ggtitle("rpart variable importance plot") + # set title
+  scale_x_discrete(expand = c(0, 0)) + # remove v space
+  scale_y_continuous(expand = c(0, 0)) + # remove h space
+  theme_bw() + # remove background gray colour
+  theme(aspect.ratio = 1,
+        plot.title = element_text(hjust=0.5)) # centralise title text
+ggsave("figures/var_importance.pdf",
+       height = 5, width = 5, dpi = 300)
+```
 
 ### **iv. Heatmap visualisation.**
 
 ```{r heatmap}
-rv <- rowVars(t(scaled_data)) # select variable features
-idx <- order(-rv) # order varies features in decreasing order
+# select variable features
+rv <- rowVars(t(scaled_data)) 
+
+# order varies features in decreasing order
+idx <- order(-rv) 
 
 # adding cluster information
 clusters <- km$cluster
 
+# setting cluster colours.
 cols <- palette(brewer.pal(8, 
                            "Dark2"))[as.numeric(clusters)]
 
@@ -434,6 +496,7 @@ hmcol <- colorRampPalette(brewer.pal(9, "GnBu"))(100)
 head(cbind(colnames(scaled_data),cols))
 
 # plot heatmap
+set.seed(1)
 heatmap.2(t(scaled_data)[idx,], 
           labCol = clusters,
           trace = "none",
@@ -446,6 +509,8 @@ heatmap.2(t(scaled_data)[idx,],
 pdf(file = "figures/heatmap.pdf",
     height = 8, width = 8)
 
+# plot
+set.seed(1)
 heatmap.2(t(scaled_data)[idx,], 
           labCol = clusters,
           trace = "none",
@@ -453,15 +518,14 @@ heatmap.2(t(scaled_data)[idx,],
           ColSideColors = cols, 
           margins = c(10,12),
           col = hmcol) 
-
 dev.off()
 ```
 
-The heatmap shows that the clustering is mostly homogeneous and quite successful, except for one member of cluster 2 which clusters together with members of cluster 1. Two members of cluster 1 cluster together with cluster 3.
+The heatmap shows that one member of cluster 3 clusters together with members of cluster 1 and 2. Based on the analyses performed so far, I expect a certain degree of cluster overlaps between members of clusters 1 and 2 as shown in the plot.
 
-It is noticeable that members of cluster 2 are in general the least motivated given all variables.
+It is noticeable on the heatmap that members of cluster 3 are in general the least motivated given most of the variables.
 
-## **Step 5: Session information.**
+## **Session information.**
 
 ```{r session_info}
 sessionInfo()
