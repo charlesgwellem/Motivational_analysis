@@ -1,11 +1,42 @@
 ---
-title: "solution_script"
-author: "Charles"
-date: "`r Sys.Date()`"
-output: html_document
-editor_options: 
+title: "bmi_epigenetic_model"
+author: "Charles Anchang"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    theme: cosmo
+    highlight: monochrome
+    toc: yes
+    toc_float: no
+    toc_depth: 6
+    code_folding: hide
+  word_document:
+    toc: yes
+    toc_depth: '6'
+  pdf_document:
+    toc: yes
+    toc_depth: '6'
+editor_options:
   chunk_output_type: console
 ---
+
+```{css, echo=FALSE}
+<style>
+body, divi, h2, h3, h4 {
+    font-family: "Bookman", serif;
+}
+
+body {
+    color: #333333;
+}
+a, a:hover {
+    color: red;
+}
+pre {
+    font-size: 10px;
+}
+</style>
+```
 
 ## **Description**
 
@@ -19,8 +50,6 @@ I will use various approaches to identify and confirm the optimal number of grou
 2. Selection of similarity metric
 3. Clustering
 4. Analyses
-
-## **Setup**
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
